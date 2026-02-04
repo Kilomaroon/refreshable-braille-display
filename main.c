@@ -1,116 +1,81 @@
-/* 
- * Author: kilomaroon
- */
-
-#include <stdio.h>
-#include <stdlib.h>
-#include<avr/io.h>
+#include <avr/io.h>
+#include <util/delay.h>
+#include <avr/pgmspace.h>
 #define F_CPU 8000000UL
-#include<util/delay.h>
-#include "pinout.h"
-/*
- * 
- */
+#include "uart.h"
+#include "spi.h"
+#include "sdcard.h"
+#include "sdprint.h"
 
 
+#define BAUD_RATE 9600
 
-_Bool cellReset(_Bool []);
-_Bool cellSet(_Bool []);
-void pinInit();
+int main(void)
+{
+    // array to hold responses
+    uint8_t res[5], buf[512], token;
+    uint32_t addr = 0x00000000;
 
-int main(int argc, char** argv) {
-    pinInit();
-    
-    _Bool c_prev[] = {1,0,1,0,1,0};
-    _Bool c_next[] = {1,1,1,0,0,0};
-    _Bool c_out_s[6];
-    _Bool c_out_r[6];
-    
-    for (int i = 0; i<6;i++){
-        c_out_r[i] = c_prev[i]& ~(c_next[i]);
-        c_out_s[i] = c_next[i]& ~(c_prev[i]);
-    }
-    
-    while(1){
-        cellReset(c_out_r);
-        _delay_ms(2000);
-        cellSet(c_out_s);
-        _delay_ms(2000);
-    }
-    
-    return (EXIT_SUCCESS);
-}
+    // initialize UART
+    UART_init();
 
-void pinInit(){
-    // set directions
-    DDRr |= (1<<RESET);
-    DDRs |= (1<<SET);
-    DDRp |= (1<<P0)|(1<<P1)|(1<<P2);
-    
-    // start in RESET mode
-    PORTs &= ~(1<<SET);
-    PORTr |= (1<<RESET);
-}
+    // initialize SPI
+    SPI_init(SPI_MASTER | SPI_FOSC_128 | SPI_MODE_0);
 
-_Bool cellReset(_Bool c_out_r[]){ 
-    
-    R_MODE
-    
-    if(c_out_r[0]){
-        PORTp = A;
-        _delay_ms(2000);
+    // initialize sd card
+    if(SD_init() != SD_SUCCESS)
+    {
+        UART_pputs("Error initializing SD CARD\r\n");
     }
-    if(c_out_r[1]){
-        PORTp = B;
-        _delay_ms(2000);
-    }
-    if(c_out_r[2]){
-        PORTp = C;
-        _delay_ms(2000);
-    }
-    if(c_out_r[3]){
-        PORTp = D;
-        _delay_ms(2000);
-    }
-    if(c_out_r[4]){
-        PORTp = E;
-        _delay_ms(2000);
-    }
-    if(c_out_r[5]){
-        PORTp = F;
-        _delay_ms(2000);
-    }
-    return 0;
-}
+    else
+    {
+        UART_pputs("SD Card initialized\r\n");
 
-_Bool cellSet(_Bool c_out_s[]){ 
-    
-    S_MODE
-            
-    if(c_out_s[0]){
-        PORTp = A;
-        _delay_ms(2000);
+        // read sector 0
+        UART_pputs("\r\nReading sector: 0x");
+        UART_puthex8((uint8_t)(addr >> 24));
+        UART_puthex8((uint8_t)(addr >> 16));
+        UART_puthex8((uint8_t)(addr >> 8));
+        UART_puthex8((uint8_t)addr);
+        res[0] = SD_readSingleBlock(addr, buf, &token);
+        UART_pputs("\r\nResponse:\r\n");
+        SD_printR1(res[0]);
+
+        // if no error, print buffer
+        if((res[0] == 0x00) && (token == SD_START_TOKEN))
+            SD_printBuf(buf);
+        // else if error token received, print
+        else if(!(token & 0xF0))
+        {
+            UART_pputs("Error token:\r\n");
+            SD_printDataErrToken(token);
+        }
+
+        // update address to 0x00000100
+        addr = 0x00000100;
+
+        // fill buffer with 0x55
+        for(uint16_t i = 0; i < 512; i++) buf[i] = 0x55;
+
+        UART_pputs("Writing 0x55 to sector: 0x");
+        UART_puthex8((uint8_t)(addr >> 24));
+        UART_puthex8((uint8_t)(addr >> 16));
+        UART_puthex8((uint8_t)(addr >> 8));
+        UART_puthex8((uint8_t)addr);
+
+        // write data to sector
+        res[0] = SD_writeSingleBlock(addr, buf, &token);
+
+        UART_pputs("\r\nResponse:\r\n");
+        SD_printR1(res[0]);
+
+        // if no errors writing
+        if(res[0] == 0x00)
+        {
+            if(token == SD_DATA_ACCEPTED)
+                UART_pputs("Write successful\r\n");
+        }
     }
-    if(c_out_s[1]){
-        PORTp = B;
-        _delay_ms(2000);
-    }
-    if(c_out_s[2]){
-        PORTp = C;
-        _delay_ms(2000);
-    }
-    if(c_out_s[3]){
-        PORTp = D;
-        _delay_ms(2000);
-    }
-    if(c_out_s[4]){
-        PORTp = E;
-        _delay_ms(2000);
-    }
-    if(c_out_s[5]){
-        PORTp = F;
-        _delay_ms(2000);
-    }
-    
-    return 0;
+
+    while(1) ;
 }
