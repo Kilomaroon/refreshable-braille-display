@@ -14,8 +14,6 @@ extern "C" {
 }
 #endif
 
-#endif	/* PINOUT_H */
-
 /*----------------------------------------------*/
 /* DECODER SELECTS */
 /*----------------------------------------------*/
@@ -56,3 +54,5 @@ PORTr &= ~(1<<RESET);
 #define D (PORTp|CELL_MASK) & ~((1<<P2)|(1<<P1))
 #define E (PORTp|CELL_MASK) & ~((1<<P2)|(1<<P0))
 #define F (PORTp|CELL_MASK) & ~((1<<P2)|(1<<P1)|(1<<P0))
+
+#endif	/* PINOUT_H */
