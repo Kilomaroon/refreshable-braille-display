@@ -95,6 +95,13 @@ uint16_t asc2braille(char c)
     return (uint16_t)letter | ((uint16_t)prefix << 8);
 }
 
+_Bool *braille2array(uint16_t val){
+    static _Bool pins [12];
+    for (int i = 11; i >= 0; i--) {
+        pins[i] = (val >> (11-i)) & 1;
+    }
+    return pins;
+}
 
 
 

@@ -18,6 +18,13 @@ extern "C" {
  * @return 16-bit Braille pattern 
  */
 uint16_t asc2braille(char c);
+/**
+ * Converts a 2 byte int into the braille output
+ * 
+ * @param val value to convert
+ * @return  braille array 
+ */
+_Bool *braille2array(uint16_t val);
 
 #ifdef __cplusplus
 }
