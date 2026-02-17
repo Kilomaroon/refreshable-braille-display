@@ -62,7 +62,7 @@ uint8_t SD_init()
     _delay_ms(1);
 
     SD_readOCR(res);
-
+    
     return SD_SUCCESS;
 }
 

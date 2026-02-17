@@ -144,7 +144,7 @@ void SD_printBuf(uint8_t *buf)
     for(uint16_t i = 0; i < SD_BLOCK_LEN; i++)
     {
         UART_puthex8(*buf++);
-        if(colCount == 19)
+        if(colCount == 15)
         {
             UART_pputs("\r\n");
             colCount = 0;
