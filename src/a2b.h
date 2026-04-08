@@ -25,7 +25,7 @@ uint16_t asc2braille(char c);
  * @return  braille array 
  */
 _Bool *braille2array(uint16_t);
-int CompileArray(_Bool *, uint8_t *, uint32_t );
+int CompileArray(_Bool *, uint8_t *, uint32_t , uint32_t );
 
 #ifdef __cplusplus
 }

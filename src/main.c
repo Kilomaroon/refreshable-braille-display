@@ -161,7 +161,7 @@ int main(void)
             
         uint32_t DIR_FileSize;
         uint8_t DIR_Name[11], DIR_Attr, LDIR_Ord;
-        uint8_t LDIR_Attr, TargetFile[]="TEXT    TXT";
+        uint8_t LDIR_Attr, TargetFile[]="TEXT    TXT"; // Note that the file has to be named text.txt. Change this to change the file we seek
         uint8_t LFN[255], LFN_Buf[255];
         int i = 0;
         

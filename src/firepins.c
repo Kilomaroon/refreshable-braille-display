@@ -19,7 +19,9 @@
 
 
 
-#define MAX_TL_LEN 128
+#define MAX_TL_LEN 84 // 6*out output length.
+// file size should be an integer multiple of output lentgh
+#define PIN_DELAY 200
 
 
 void fire(uint8_t *testOutput,uint32_t size) {
@@ -30,26 +32,44 @@ void fire(uint8_t *testOutput,uint32_t size) {
     _Bool c_prev[MAX_TL_LEN];
     _Bool c_next[MAX_TL_LEN];
     _Bool translation[MAX_TL_LEN];
-    uint8_t output_len = 1;
+    int output_len = 14; // In the current system state, you can do from 1-14
+    int scale = 0;
     
-    _Bool cells[] = {0,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0};
+    // Actual layout of attached braille cells
+    _Bool cells[] = {0,1,1,1,1,1,1,1, 1,1,1,1,1,1,1,0};
     
-    int i = 0,p=0,s;
-    s = CompileArray(translation,testOutput, size);
+    int i = 0,s;
+    s = CompileArray(translation,testOutput, scale, size);
+    
+    UART_pputs("\r\nFWDBTN : i = ");
+    UART_puthex32(i);
+    UART_pputs("\r\noutput_len = ");
+    UART_puthex32(output_len);
+    UART_pputs("\r\n         s = ");
+    UART_puthex32(s);
+    UART_pputs("\r\n      size = ");
+    UART_puthex32(size);
+    UART_pputs("\r\n     scale = ");
+    UART_puthex32(scale);
+                
     UART_pputs("\r\nTL: \r\n");
-    for (int n = 0; n<MAX_TL_LEN;n++){
+    for (int n = 0; n<s;n++){
         UART_putbit(translation[n]);
-        p++;
-        if (p>=6){
-            UART_pputs("\n");
-            p=0;
+        if (!((n+1)%6)){
+            UART_pputs(" ");
+            if (!((n+1)%72)){
+                UART_pputs("\n");
+            }
         }
         
     }
     
-    
+    UART_pputs("\r\nSET CPREV: \r\n");
     for(int j = 0; j<output_len*6; j++){
-        c_prev[j] = 0;
+        c_prev[j] = !translation[j];
+        UART_putbit(translation[j]);
+        UART_pputs("\r\nSET TL--s: \r\n");
+        UART_putbit(c_prev[j]);
     }
     
     while(1){
@@ -61,7 +81,7 @@ void fire(uint8_t *testOutput,uint32_t size) {
 
         cellSelect(cells, c_prev, c_next);
 
-        for (int j = 0; j<output_len*6; j++){
+        for (int j = 0; (j<output_len*6)&(j<size*6); j++){
             c_prev[j]=c_next[j];
         }
 
@@ -69,22 +89,70 @@ void fire(uint8_t *testOutput,uint32_t size) {
         while(1){
             if (!(PINbtn & (1<<FWDBTN))){
                 
-                if (i+ output_len > (s-output_len)){
-                        i = (s-output_len);
-                } else {
-                    i += output_len;
+                if (scale+output_len <= size-output_len){
+                    scale+=output_len;
+                    s = CompileArray(translation, testOutput, scale, size);
+                    UART_pputs("\r\nTL: \r\n");
+                    for (int n = 0; n<s*6;n++){
+                        UART_putbit(translation[n]);
+                        if (!((n+1)%6)){
+                            UART_pputs(" ");
+                            if (!((n+1)%72)){
+                                UART_pputs("\n");
+                            }
+                        }
+
+                    }
+                    
+                    
                 }
-                UART_pputs("\r\nFWDBTN");
+                
+                UART_pputs("\r\nFWDBTN : i = ");
+                UART_puthex32(i);
+                UART_pputs("\r\noutput_len = ");
+                UART_puthex32(output_len);
+                UART_pputs("\r\n         s = ");
+                UART_puthex32(s);
+                UART_pputs("\r\n      size = ");
+                UART_puthex32(size);
+                UART_pputs("\r\n     scale = ");
+                UART_puthex32(scale);
+                
                 break;
             }
             if (!(PINbtn & (1<<BCKBTN))){
+                UART_pputs("\r\n BEFORE : i = ");
+                UART_puthex32(i);
                 
-                if (i - output_len < 0){
-                    i = 0;
+                if (scale-output_len >= 0){
+                    scale-=output_len;
+                    s = CompileArray(translation,testOutput, scale,size);
+                    UART_pputs("\r\nTL: \r\n");
+                    for (int n = 0; n<s*6;n++){
+                        UART_putbit(translation[n]);
+                        if (!((n+1)%6)){
+                            UART_pputs(" ");
+                            if (!((n+1)%72)){
+                                UART_pputs("\n");
+                            }
+                        }
+
+                    }
                 } else {
-                    i -= output_len;
+                    i = 0;
                 }
-                UART_pputs("\r\nBCKBTN");
+                
+                UART_pputs("\r\nBCKBTN : i = ");
+                UART_puthex32(i);
+                UART_pputs("\r\noutput_len = ");
+                UART_puthex32(output_len);
+                UART_pputs("\r\n         s = ");
+                UART_puthex32(s);
+                UART_pputs("\r\n      size = ");
+                UART_puthex32(size);
+                UART_pputs("\r\n     scale = ");
+                UART_puthex32(scale);
+                
                 break;
             }
         }
@@ -96,9 +164,9 @@ void fire(uint8_t *testOutput,uint32_t size) {
 }
 
 void pinInit(){
-    // set directions
-    DDRr |= (1<<RESET);
-    DDRs |= (1<<SET);
+    // set directions array 2
+    DDRr_2 |= (1<<RESET_2);
+    DDRs_2 |= (1<<SET_2);
     
     // pin select array 2
     DDR_PS2_1 |= (1<<P2_1)|(1<<P2_2);
@@ -108,18 +176,28 @@ void pinInit(){
     DDR_CS2_1 |= (1<<C2_1)|(1<<C2_2);
     DDR_CS2_2 |= (1<<C2_0);
     
+    // pin select array 1
+    DDR_PS1 |= (1<<P1_0)|(1<<P1_1)|(1<<P1_2);
+    
+    // cell select array 1
+    DDR_CS1 |= (1<<C1_0)|(1<<C1_1)|(1<<C1_2);
+    
+    // set directions array 1
+    DDRr_1 |= (1<<RESET_1);
+    DDRs_1 |= (1<<SET_1);
+    
     // buttons
     DDRbtn &= ~((1<<FWDBTN)|(1<<BCKBTN)); // negation for inputs
     PORTbtn |= ((1<<FWDBTN)|(1<<BCKBTN)); // internal pull up
     
     // start in RESET mode
-    PORTs &= ~(1<<SET);
-    PORTr |= (1<<RESET);
+    N_MODE_2
+    N_MODE_1
 }
 
 _Bool pinSet_2(_Bool c_prev[],_Bool c_next[]){ 
     
-    S_MODE
+    S_MODE_2
             
     _Bool c_out[6];
     
@@ -156,13 +234,13 @@ _Bool pinSet_2(_Bool c_prev[],_Bool c_next[]){
                     UART_puthex8(i+1);
                     break;
             }
-            _delay_ms(250);
+            _delay_ms(PIN_DELAY);
             UART_pputs("\r\n");
         }
         RESETPINS_2
     }
     
-    R_MODE
+    R_MODE_2
     
     for (int i = 0; i<6;i++){
         c_out[i] = c_next[i]& ~(c_prev[i]);
@@ -197,51 +275,104 @@ _Bool pinSet_2(_Bool c_prev[],_Bool c_next[]){
                     UART_puthex8(i+1);
                     break;
             }
-            _delay_ms(250);
+            _delay_ms(PIN_DELAY);
             UART_pputs("\r\n");
         }
         RESETPINS_2
     }
+    N_MODE_2
     
     return 0;
     
 }
 
-_Bool pinSet_1(_Bool c_out_s[]){ 
+_Bool pinSet_1(_Bool c_prev[],_Bool c_next[]){ 
     
-    S_MODE
+    S_MODE_1
             
-    if(c_out_s[0]){
-        RESETPINS_2
-        A_2
-        _delay_ms(1000);
-    }
-    if(c_out_s[1]){
-        RESETPINS_2
-        B_2
-        _delay_ms(1000);
-    }
-    if(c_out_s[2]){
-        RESETPINS_2
-        C_2
-        _delay_ms(1000);
-    }
-    if(c_out_s[3]){
-        RESETPINS_2
-        D_2
-        _delay_ms(1000);
-    }
-    if(c_out_s[4]){
-        RESETPINS_2
-        E_2
-        _delay_ms(1000);
-    }
-    if(c_out_s[5]){
-        RESETPINS_2
-        F_2
-        _delay_ms(1000);
+    _Bool c_out[6];
+    
+    for (int i = 0; i<6;i++){
+        c_out[i] = c_prev[i]& ~(c_next[i]);
     }
     
+    for (uint8_t i = 0; i < 6; i++) {
+        if (c_out[i]){
+            UART_pputs("Resetting Pin: 0x");
+            switch(i){
+                case 0:
+                    A_1
+                    UART_puthex8(i+1);
+                    break;
+                case 1:
+                    B_1
+                    UART_puthex8(i+1);
+                    break;
+                case 2:
+                    C_1
+                    UART_puthex8(i+1);
+                    break;
+                case 3:
+                    D_1
+                    UART_puthex8(i+1);
+                    break;
+                case 4:
+                    E_1
+                    UART_puthex8(i+1);
+                    break;
+                case 5:
+                    F_1
+                    UART_puthex8(i+1);
+                    break;
+            }
+            _delay_ms(PIN_DELAY);
+            UART_pputs("\r\n");
+        }
+        RESETPINS_1
+    }
+    
+    R_MODE_1
+    
+    for (int i = 0; i<6;i++){
+        c_out[i] = c_next[i]& ~(c_prev[i]);
+    }
+    
+    for (int i = 0; i < 6; i++) {
+        if (c_out[i]){
+            UART_pputs("Setting Pin: 0x");
+            switch(i){
+                case 0:
+                    A_1
+                    UART_puthex8(i+1);
+                    break;
+                case 1:
+                    B_1
+                    UART_puthex8(i+1);
+                    break;
+                case 2:
+                    C_1
+                    UART_puthex8(i+1);
+                    break;
+                case 3:
+                    D_1
+                    UART_puthex8(i+1);
+                    break;
+                case 4:
+                    E_1
+                    UART_puthex8(i+1);
+                    break;
+                case 5:
+                    F_1
+                    UART_puthex8(i+1);
+                    break;
+            }
+            _delay_ms(PIN_DELAY);
+            UART_pputs("\r\n");
+        }
+        RESETPINS_1
+    }
+    
+    N_MODE_1
     return 0;
 }
 
@@ -258,6 +389,38 @@ _Bool cellSelect(_Bool cells[],_Bool c_prev[],_Bool c_next[]){
             }
             x += 6;
             switch(i){
+                case 0:
+                    CS1_1
+                    UART_pputs("\r\nARRAY 1 --- CELL 1\r\n");
+                    break;
+                case 1:
+                    CS1_2
+                    UART_pputs("\r\nARRAY 1 --- CELL 2\r\n");
+                    break;
+                case 2:
+                    CS1_3
+                    UART_pputs("\r\nARRAY 1 --- CELL 3\r\n");
+                    break;
+                case 3:
+                    CS1_4
+                    UART_pputs("\r\nARRAY 1 --- CELL 4\r\n");
+                    break;
+                case 4:
+                    CS1_5
+                    UART_pputs("\r\nARRAY 1 --- CELL 5\r\n");
+                    break;
+                case 5:
+                    CS1_6
+                    UART_pputs("\r\nARRAY 1 --- CELL 6\r\n");
+                    break;
+                case 6:
+                    CS1_7
+                    UART_pputs("\r\nARRAY 1 --- CELL 7\r\n");
+                    break;
+                case 7:
+                    CS1_8
+                    UART_pputs("\r\nARRAY 1 --- CELL 8\r\n");
+                    break;
                 case 8:
                     CS2_1
                     UART_pputs("\r\nARRAY 2 --- CELL 1\r\n");
@@ -295,9 +458,9 @@ _Bool cellSelect(_Bool cells[],_Bool c_prev[],_Bool c_next[]){
                 pinSet_2(cp, cn);
                 
             } else {
-                UART_pputs("\r\nInvalid Cell: Array 1\r\n");
+                pinSet_1(cp, cn);
             }
-            _delay_ms(1000);
+            _delay_ms(PIN_DELAY);
             
         }
     }

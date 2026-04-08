@@ -3,27 +3,29 @@
 #include "uart.h"
 #define F_CPU 8000000UL
 
+
+// Uncomment this section to enable debug
 void UART_init()
 {
-    #ifndef BAUD_RATE
-    #define BAUD_RATE 9600
-    #endif
-
-	// set rate
-	UBRR0H = (unsigned char) (((F_CPU/(BAUD_RATE*16UL))) - 1) >> 8;
-	UBRR0L = (unsigned char) ((F_CPU/(BAUD_RATE*16UL))) - 1;
-
-	// Enable reciever and transmitter
-	UCSR0B |= (1 << RXEN0)|(1 << TXEN0);
+//    #ifndef BAUD_RATE
+//    #define BAUD_RATE 9600
+//    #endif
+//
+//	// set rate
+//	UBRR0H = (unsigned char) (((F_CPU/(BAUD_RATE*16UL))) - 1) >> 8;
+//	UBRR0L = (unsigned char) ((F_CPU/(BAUD_RATE*16UL))) - 1;
+//
+//	// Enable reciever and transmitter
+//	UCSR0B |= (1 << RXEN0)|(1 << TXEN0);
 }
 
 void UART_putc(const unsigned char data)
 {
-	// wait for empty transmit buffer
-	while(!(UCSR0A & (1<<UDRE0)));
-
-	// send data to output register
-	UDR0 = data;
+//	// wait for empty transmit buffer
+//	while(!(UCSR0A & (1<<UDRE0)));
+//
+//	// send data to output register
+//	 UDR0 = data;
 }
 
 void UART_puts(const char* charString)
